@@ -2,6 +2,7 @@ import pandas as pd
 import json
 import re
 import string
+from tensorflow.keras.preprocessing.text import Tokenizer
 
 
 def read_file(path):
@@ -29,6 +30,8 @@ def clean_data(_data):
     _data['headline'] = _data['headline'].apply(clean_row_text)
     # Drop the duplicate rows
     _data.drop_duplicates(subset=['headline'], inplace=True)
+    # Create a new column that contains the length of each sentence
+    _data['sentence_length'] = _data['headline'].str.len()
     # Return the cleaned data
     return _data
 
@@ -56,6 +59,8 @@ def data_info(_data):
     print(_data.shape)
     # Print the number of duplicate rows in the data
     print(_data.duplicated().sum())
+    # Print length of the longest sentence
+    print(_data['sentence_length'].max())
 
 
 if __name__ == '__main__':
