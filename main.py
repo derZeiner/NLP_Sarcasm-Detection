@@ -2,7 +2,13 @@ import pandas as pd
 import json
 import re
 import string
-from tensorflow.keras.preprocessing.text import Tokenizer
+import nltk
+from nltk.corpus import stopwords
+from sklearn.model_selection import train_test_split
+
+# Download the stopwords
+nltk.download('stopwords')
+stop_words = stopwords.words('english')
 
 
 def read_file(path):
@@ -40,8 +46,12 @@ def clean_row_text(_text):
     # ***********************************
     # Function: Cleans a row of text
     # ***********************************
+    # remove all the digits from the text
     _text = re.sub(r'\d+', '', _text)
-    _text = "".join([char for char in _text if char not in string.punctuation])
+    # Remove punctuations
+    _text = re.sub('[%s]' % re.escape(string.punctuation), '', _text)
+    # Remove the stop words
+    _text = " ".join([char for char in _text if char not in stop_words])
     return _text
 
 
@@ -72,6 +82,13 @@ if __name__ == '__main__':
     data = clean_data(data)
     # Print the data info
     data_info(data)
+    # Split the data into train, validation and test sets
+    X = data['headline']
+    y = data['sentence_length']
+    X_train_val, X_test, y_train_val, y_test = train_test_split(X, y, test_size=0.20, random_state=42)
+    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.20, random_state=42)
+
+
 
 
 
