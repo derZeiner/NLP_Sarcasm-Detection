@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import json
 import re
 import string
@@ -6,16 +7,15 @@ import nltk
 from nltk.corpus import stopwords
 from num2words import num2words
 import contractions
-import gensim
-import keras
-from keras.models import Sequential
-from keras.utils import pad_sequences
-from keras.preprocessing import text
-from keras.layers import Dense, Embedding, LSTM, Bidirectional, GRU
-import numpy as np
+import matplotlib.pyplot as plt
+import warnings
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import f1_score
+import tensorflow as tf
+from keras.preprocessing.text import Tokenizer
+from keras.utils import pad_sequences
 
+
+warnings.filterwarnings('ignore')
 # Global variables that will be used in the functions
 # Download the stopwords
 nltk.download('stopwords')
@@ -101,18 +101,17 @@ def data_info(_data):
     print(f"Length of the longest sentence: {_data['sentence_length'].max()}")
 
 
-# Function to create weight matrix from word2vec gensim model
-def get_weight_matrix(model, vocab):
-    # total vocabulary size plus 0 for unknown words
-    vocab_size = len(vocab) + 1
-    # define weight matrix dimensions with all 0
-    weight_matrix = np.zeros((vocab_size, 200))
-    # step vocab, store vectors using the Tokenizer's integer mapping
-    for word, i in vocab.items():
-        if word in model.wv:
-            weight_matrix[i] = model.wv[word]
-
-    return weight_matrix
+def plot_graphs(_history, _string):
+    # ***********************************
+    # Function: Plots the graphs
+    # ***********************************
+    # Plot the graphs
+    plt.plot(_history.history[_string])
+    plt.plot(_history.history['val_' + _string])
+    plt.xlabel("Epochs")
+    plt.ylabel(_string)
+    plt.legend([_string, 'val_' + _string])
+    plt.show()
 
 
 if __name__ == '__main__':
@@ -124,52 +123,61 @@ if __name__ == '__main__':
     data = clean_data(data)
     # Print the data info
     data_info(data)
+    # Split the data into train and test sets
+    labels = np.array(data.is_sarcastic)
+    sentences = np.array(data.headline)
+    x_train, x_test, y_train, y_test = train_test_split(sentences, labels, test_size=0.2)
 
-    words = []
-    for i in data.headline.values:
-        words.append(i.split())
+    # hyperparameters
+    vocab_size = 10000
+    max_length = 32
+    embedding_dim = 32
+    padding_type = 'post'
+    oov_token = '<OOV>'
 
-    # Dimension of vectors we are generating
-    EMBEDDING_DIM = 200
+    # tokinizing the texts
+    tokenizer = Tokenizer(num_words=vocab_size, oov_token=oov_token)
+    tokenizer.fit_on_texts(x_train)
+    word_index = tokenizer.word_index
 
-    # Creating Word Vectors by Word2Vec Method (takes time...)
-    w2v_model = gensim.models.Word2Vec(sentences=words, vector_size=EMBEDDING_DIM)
+    # padding the sequences
+    train_sequences = tokenizer.texts_to_sequences(x_train)
+    padded_train_sequences = pad_sequences(train_sequences, maxlen=max_length, padding=padding_type)
+    test_sequences = tokenizer.texts_to_sequences(x_test)
+    padded_test_sentences = pad_sequences(test_sequences, maxlen=max_length, padding=padding_type)
 
-    tokenizer = text.Tokenizer(num_words=35000)
-    tokenizer.fit_on_texts(words)
-    tokenized_train = tokenizer.texts_to_sequences(words)
-    x = pad_sequences(tokenized_train, maxlen=20)
+    # hyperparameters
+    number_of_epochs = 10
+    lstm1_dim = 64
+    lstm2_dim = 32
+    gru_dim = 32
+    filters = 128
+    kernel_size = 5
+    lr = 0.0001
 
-    # Adding 1 because of reserved 0 index
-    # Embedding Layer creates one more vector for "UNKNOWN" words, or padded words (0s). This Vector is filled with zeros.
-    # Thus our vocab size inceeases by 1
-    vocab_size = len(tokenizer.word_index) + 1
+    # model
+    model = tf.keras.Sequential([
+        tf.keras.layers.Embedding(vocab_size, embedding_dim, input_length=max_length),
+        tf.keras.layers.Dropout(0.2),
+        tf.keras.layers.Conv1D(filters, kernel_size, activation='relu'),
+        tf.keras.layers.GlobalAveragePooling1D(),
+        tf.keras.layers.Dense(128, activation='relu'),
+        tf.keras.layers.Dropout(0.5),
+        tf.keras.layers.Dense(64, activation='relu'),
+        tf.keras.layers.Dropout(0.25),
+        tf.keras.layers.Dense(32, activation='relu'),
+        tf.keras.layers.Dropout(0.2),
+        tf.keras.layers.Dense(1, activation='sigmoid'),
+    ])
 
-    # Getting embedding vectors from word2vec and usings it as weights of non-trainable keras embedding layer
-    embedding_vectors = get_weight_matrix(w2v_model, tokenizer.word_index)
-
-    # Defining Neural Network
-    model = Sequential()
-    # Non-trainable embeddidng layer
-    model.add(Embedding(vocab_size, output_dim=EMBEDDING_DIM, weights=[embedding_vectors], input_length=20, trainable=True))
-    # LSTM
-    model.add(Bidirectional(LSTM(units=128, recurrent_dropout=0.3, dropout=0.3, return_sequences=True)))
-    model.add(Bidirectional(GRU(units=32, recurrent_dropout=0.1, dropout=0.1)))
-    model.add(Dense(1, activation='sigmoid'))
-    model.compile(optimizer=keras.optimizers.Adam(lr=0.01), loss='binary_crossentropy', metrics=['acc'])
+    # model summary
     model.summary()
-
-    x_train, x_test, y_train, y_test = train_test_split(x, data.is_sarcastic, test_size=0.3, random_state=0)
-    history = model.fit(x_train, y_train, batch_size=128, validation_data=(x_test, y_test), epochs=10)
-
-    print("Accuracy of the model on Training Data is - ", model.evaluate(x_train, y_train)[1] * 100)
-    print("Accuracy of the model on Testing Data is - ", model.evaluate(x_test, y_test)[1] * 100)
-
-    # generate predictions on your testing data
-    y_pred = model.predict(x_test)
-    # convert predictions from one-hot encoding to class labels
-    y_pred = np.argmax(y_pred, axis=1)
-    # calculate F1 score
-    f1 = f1_score(y_test, y_pred, average='weighted')
-    print("F1 score: {:.2f}".format(f1))
-
+    # compile the model
+    model.compile(loss='binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=lr), metrics=['accuracy'])
+    # train the model
+    history = model.fit(padded_train_sequences, y_train, epochs=number_of_epochs, validation_data=(padded_test_sentences, y_test), verbose=1)
+    # evaluate the model
+    print('Accuracy on test set: ', model.evaluate(padded_test_sentences, y_test)[1] * 100)
+    # Plot the accuracy and loss
+    plot_graphs(history, "accuracy")
+    plot_graphs(history, "loss")
