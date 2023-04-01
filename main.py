@@ -13,7 +13,7 @@ from sklearn.model_selection import train_test_split
 import tensorflow as tf
 from keras.preprocessing.text import Tokenizer
 from keras.utils import pad_sequences
-
+from keras.callbacks import EarlyStopping
 
 warnings.filterwarnings('ignore')
 # Global variables that will be used in the functions
@@ -115,11 +115,6 @@ def plot_graphs(_history, _string):
 
 
 def test_1(_data):
-    # Clean the data
-    _data = clean_data(_data)
-    # Print the data info
-    data_info(_data)
-
     # Split the data into train and test sets
     labels = np.array(_data.is_sarcastic)
     sentences = np.array(_data.headline)
@@ -127,13 +122,12 @@ def test_1(_data):
 
     # hyper-parameters
     vocab_size = 10000
-    max_length = 32
+    max_length = 713
     embedding_dim = 32
     padding_type = 'post'
-    oov_token = '<OOV>'
 
     # tokenizing the texts
-    tokenizer = Tokenizer(num_words=vocab_size, oov_token=oov_token)
+    tokenizer = Tokenizer(num_words=vocab_size, oov_token='<OOV>')
     tokenizer.fit_on_texts(x_train)
     # padding the sequences
     train_sequences = tokenizer.texts_to_sequences(x_train)
@@ -141,17 +135,11 @@ def test_1(_data):
     test_sequences = tokenizer.texts_to_sequences(x_test)
     padded_test_sentences = pad_sequences(test_sequences, maxlen=max_length, padding=padding_type)
 
-    # hyper-parameters
-    number_of_epochs = 10
-    filters = 128
-    kernel_size = 5
-    lr = 0.0001
-
     # model
     model = tf.keras.Sequential([
         tf.keras.layers.Embedding(vocab_size, embedding_dim, input_length=max_length),
         tf.keras.layers.Dropout(0.2),
-        tf.keras.layers.Conv1D(filters, kernel_size, activation='relu'),
+        tf.keras.layers.Conv1D(128, 5, activation='relu'),
         tf.keras.layers.GlobalAveragePooling1D(),
         tf.keras.layers.Dense(128, activation='relu'),
         tf.keras.layers.Dropout(0.5),
@@ -165,90 +153,92 @@ def test_1(_data):
     # model summary
     model.summary()
     # compile the model
-    model.compile(loss='binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=lr),
-                  metrics=['accuracy'])
+    model.compile(loss='binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001), metrics=['accuracy'])
+    # Define the early stopping callback
+    early_stopping = EarlyStopping(monitor='val_loss', patience=3)
     # train the model
-    history = model.fit(padded_train_sequences, y_train, epochs=number_of_epochs,
-                        validation_data=(padded_test_sentences, y_test), verbose=1)
+    history = model.fit(padded_train_sequences, y_train, epochs=10, validation_data=(padded_test_sentences, y_test), verbose=1,callbacks=[early_stopping])
+
     # evaluate the model
     print('Accuracy on test set: ', model.evaluate(padded_test_sentences, y_test)[1] * 100)
     # Plot the accuracy and loss
     plot_graphs(history, "accuracy")
     plot_graphs(history, "loss")
+    # Save the trained model to disk
+    model.save('train-CNN-model.h5')
+
+
+def create_bert_input_features(tokenizer, docs, max_seq_length):
+    import tqdm
+    all_ids, all_masks = [], []
+    for doc in tqdm.tqdm(docs, desc="Converting docs to features"):
+
+        tokens = tokenizer.tokenize(doc)
+
+        if len(tokens) > max_seq_length-2:
+            tokens = tokens[0 : (max_seq_length-2)]
+        tokens = ['[CLS]'] + tokens + ['[SEP]']
+        ids = tokenizer.convert_tokens_to_ids(tokens)
+        masks = [1] * len(ids)
+
+        # Zero-pad up to the sequence length.
+        while len(ids) < max_seq_length:
+            ids.append(0)
+            masks.append(0)
+
+        all_ids.append(ids)
+        all_masks.append(masks)
+
+    encoded = np.array([all_ids, all_masks])
+
+    return encoded
 
 
 def test_2(_data):
-    from transformers import BertTokenizer, TFBertModel
+    import transformers
+    tokenizer = transformers.DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
+
+    MAX_SEQ_LENGTH = 20
+
+    inp_id = tf.keras.layers.Input(shape=(MAX_SEQ_LENGTH,), dtype='int32', name="bert_input_ids")
+    inp_mask = tf.keras.layers.Input(shape=(MAX_SEQ_LENGTH,), dtype='int32', name="bert_input_masks")
+    inputs = [inp_id, inp_mask]
+
+    hidden_state = transformers.TFDistilBertModel.from_pretrained('distilbert-base-uncased')(inputs)[0]
+    pooled_output = hidden_state[:, 0]
+    dense1 = tf.keras.layers.Dense(256, activation='relu')(pooled_output)
+    drop1 = tf.keras.layers.Dropout(0.25)(dense1)
+    dense2 = tf.keras.layers.Dense(256, activation='relu')(drop1)
+    drop2 = tf.keras.layers.Dropout(0.25)(dense2)
+    output = tf.keras.layers.Dense(1, activation='sigmoid')(drop2)
+
+    model = tf.keras.Model(inputs=inputs, outputs=output)
+    model.compile(optimizer=tf.optimizers.Adam(learning_rate=2e-5, epsilon=1e-08),loss='binary_crossentropy', metrics=['accuracy'])
+
+    model.summary()
 
     # Split the data into train and test sets
     labels = np.array(_data.is_sarcastic)
     sentences = np.array(_data.headline)
-    x_train, x_test, y_train, y_test = train_test_split(sentences, labels, test_size=0.2)
+    X_train, X_test, y_train, y_test = train_test_split(sentences, labels, test_size=0.3, random_state=42)
 
-    # Preprocess the data
-    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+    train_features_ids, train_features_masks = create_bert_input_features(tokenizer, X_train, max_seq_length=MAX_SEQ_LENGTH)
 
-    train_encoded_data = tokenizer.batch_encode_plus(
-        x_train,
-        add_special_tokens=True,
-        return_attention_mask=True,
-        pad_to_max_length=True,
-        max_length=256,
-        truncation=True,
-        return_tensors='tf'
-    )
+    es = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=1, restore_best_weights=True, verbose=1)
 
-    test_encoded_data = tokenizer.batch_encode_plus(
-        x_test,
-        add_special_tokens=True,
-        return_attention_mask=True,
-        pad_to_max_length=True,
-        max_length=256,
-        truncation=True,
-        return_tensors='tf'
-    )
+    history = model.fit([train_features_ids, train_features_masks], y_train, validation_split=0.1, epochs=3, batch_size=25, callbacks=[es], shuffle=True, verbose=1)
 
-    # Create the BERT model
-    bert = TFBertModel.from_pretrained('bert-base-uncased', trainable=False)
+    test_features_ids, test_features_masks = create_bert_input_features(tokenizer, X_test, max_seq_length=MAX_SEQ_LENGTH)
 
-    input_ids = tf.keras.layers.Input(shape=(256,), dtype=tf.int32)
-    attention_masks = tf.keras.layers.Input(shape=(256,), dtype=tf.int32)
+    predictions = [1 if pr > 0.5 else 0 for pr in model.predict([test_features_ids, test_features_masks], verbose=0).ravel()]
 
-    output = bert(input_ids, attention_mask=attention_masks)
-
-    output = output.last_hidden_state[:, 0, :]
-
-    output = tf.keras.layers.Dropout(0.3)(output)
-
-    output = tf.keras.layers.Dense(1, activation='sigmoid')(output)
-
-    model = tf.keras.models.Model(inputs=[input_ids, attention_masks], outputs=output)
-
-    model.summary()
-
-    # Train the model
-    optimizer = tf.keras.optimizers.Adam(learning_rate=2e-5, epsilon=1e-08)
-
-    model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
-
-    history = model.fit(
-        x=[train_encoded_data['input_ids'], train_encoded_data['attention_mask']],
-        y=y_train,
-        validation_split=0.2,
-        batch_size=32,
-        epochs=3
-    )
-
-    # Evaluate the model on the test set
-    _, test_acc = model.evaluate(
-        x=[test_encoded_data['input_ids'], test_encoded_data['attention_mask']],
-        y=y_test
-    )
-
-    print('Test accuracy:', test_acc)
+    from sklearn.metrics import classification_report
+    print(classification_report(y_test, predictions))
     # Plot the accuracy and loss
-    plot_graphs(history, "BERT-Model - accuracy")
-    plot_graphs(history, "BERT-Model - loss")
+    plot_graphs(history, "accuracy")
+    plot_graphs(history, "loss")
+    # Save the trained model to disk
+    model.save('train-bert-model.h5')
 
 
 if __name__ == '__main__':
@@ -257,6 +247,10 @@ if __name__ == '__main__':
     # Read the dataset
     data = read_file(filepath)
     # Test 1
-    test_1(data)
+    # Clean the data
+    _data = clean_data(data)
+    # Print the data info
+    data_info(_data)
+    test_1(_data)
     # Test 2
     test_2(data)
