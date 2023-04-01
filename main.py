@@ -63,7 +63,7 @@ def clean_row_text(_text):
     # Function: Cleans a row of text
     # ***********************************
     # remove the square brackets from the text
-    _text = re.sub('\[[^]]*\]', '', _text)
+    _text = re.sub('[[^]]*]', '', _text)
     # find all numbers in the text
     digits = re.findall(r'\d+', _text)
     # Convert the numbers to words
@@ -114,43 +114,35 @@ def plot_graphs(_history, _string):
     plt.show()
 
 
-if __name__ == '__main__':
-    # path to the dataset
-    filepath = 'dataset/Sarcasm_Headlines_Dataset_v2.json'
-    # Read the dataset
-    data = read_file(filepath)
+def test_1(_data):
     # Clean the data
-    data = clean_data(data)
+    _data = clean_data(_data)
     # Print the data info
-    data_info(data)
+    data_info(_data)
+
     # Split the data into train and test sets
-    labels = np.array(data.is_sarcastic)
-    sentences = np.array(data.headline)
+    labels = np.array(_data.is_sarcastic)
+    sentences = np.array(_data.headline)
     x_train, x_test, y_train, y_test = train_test_split(sentences, labels, test_size=0.2)
 
-    # hyperparameters
+    # hyper-parameters
     vocab_size = 10000
     max_length = 32
     embedding_dim = 32
     padding_type = 'post'
     oov_token = '<OOV>'
 
-    # tokinizing the texts
+    # tokenizing the texts
     tokenizer = Tokenizer(num_words=vocab_size, oov_token=oov_token)
     tokenizer.fit_on_texts(x_train)
-    word_index = tokenizer.word_index
-
     # padding the sequences
     train_sequences = tokenizer.texts_to_sequences(x_train)
     padded_train_sequences = pad_sequences(train_sequences, maxlen=max_length, padding=padding_type)
     test_sequences = tokenizer.texts_to_sequences(x_test)
     padded_test_sentences = pad_sequences(test_sequences, maxlen=max_length, padding=padding_type)
 
-    # hyperparameters
+    # hyper-parameters
     number_of_epochs = 10
-    lstm1_dim = 64
-    lstm2_dim = 32
-    gru_dim = 32
     filters = 128
     kernel_size = 5
     lr = 0.0001
@@ -173,11 +165,98 @@ if __name__ == '__main__':
     # model summary
     model.summary()
     # compile the model
-    model.compile(loss='binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=lr), metrics=['accuracy'])
+    model.compile(loss='binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=lr),
+                  metrics=['accuracy'])
     # train the model
-    history = model.fit(padded_train_sequences, y_train, epochs=number_of_epochs, validation_data=(padded_test_sentences, y_test), verbose=1)
+    history = model.fit(padded_train_sequences, y_train, epochs=number_of_epochs,
+                        validation_data=(padded_test_sentences, y_test), verbose=1)
     # evaluate the model
     print('Accuracy on test set: ', model.evaluate(padded_test_sentences, y_test)[1] * 100)
     # Plot the accuracy and loss
     plot_graphs(history, "accuracy")
     plot_graphs(history, "loss")
+
+
+def test_2(_data):
+    from transformers import BertTokenizer, TFBertModel
+
+    # Split the data into train and test sets
+    labels = np.array(_data.is_sarcastic)
+    sentences = np.array(_data.headline)
+    x_train, x_test, y_train, y_test = train_test_split(sentences, labels, test_size=0.2)
+
+    # Preprocess the data
+    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+
+    train_encoded_data = tokenizer.batch_encode_plus(
+        x_train,
+        add_special_tokens=True,
+        return_attention_mask=True,
+        pad_to_max_length=True,
+        max_length=256,
+        truncation=True,
+        return_tensors='tf'
+    )
+
+    test_encoded_data = tokenizer.batch_encode_plus(
+        x_test,
+        add_special_tokens=True,
+        return_attention_mask=True,
+        pad_to_max_length=True,
+        max_length=256,
+        truncation=True,
+        return_tensors='tf'
+    )
+
+    # Create the BERT model
+    bert = TFBertModel.from_pretrained('bert-base-uncased', trainable=False)
+
+    input_ids = tf.keras.layers.Input(shape=(256,), dtype=tf.int32)
+    attention_masks = tf.keras.layers.Input(shape=(256,), dtype=tf.int32)
+
+    output = bert(input_ids, attention_mask=attention_masks)
+
+    output = output.last_hidden_state[:, 0, :]
+
+    output = tf.keras.layers.Dropout(0.3)(output)
+
+    output = tf.keras.layers.Dense(1, activation='sigmoid')(output)
+
+    model = tf.keras.models.Model(inputs=[input_ids, attention_masks], outputs=output)
+
+    model.summary()
+
+    # Train the model
+    optimizer = tf.keras.optimizers.Adam(learning_rate=2e-5, epsilon=1e-08)
+
+    model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
+
+    history = model.fit(
+        x=[train_encoded_data['input_ids'], train_encoded_data['attention_mask']],
+        y=y_train,
+        validation_split=0.2,
+        batch_size=32,
+        epochs=3
+    )
+
+    # Evaluate the model on the test set
+    _, test_acc = model.evaluate(
+        x=[test_encoded_data['input_ids'], test_encoded_data['attention_mask']],
+        y=y_test
+    )
+
+    print('Test accuracy:', test_acc)
+    # Plot the accuracy and loss
+    plot_graphs(history, "BERT-Model - accuracy")
+    plot_graphs(history, "BERT-Model - loss")
+
+
+if __name__ == '__main__':
+    # path to the dataset
+    filepath = 'dataset/Sarcasm_Headlines_Dataset_v2.json'
+    # Read the dataset
+    data = read_file(filepath)
+    # Test 1
+    test_1(data)
+    # Test 2
+    test_2(data)
