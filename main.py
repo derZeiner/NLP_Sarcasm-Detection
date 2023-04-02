@@ -122,8 +122,8 @@ def test_1(_data):
 
     # hyper-parameters
     vocab_size = 10000
-    max_length = 713
-    embedding_dim = 32
+    max_length = 200
+    embedding_dim = 64
     padding_type = 'post'
 
     # tokenizing the texts
@@ -157,7 +157,7 @@ def test_1(_data):
     # Define the early stopping callback
     early_stopping = EarlyStopping(monitor='val_loss', patience=3)
     # train the model
-    history = model.fit(padded_train_sequences, y_train, epochs=10, validation_data=(padded_test_sentences, y_test), verbose=1,callbacks=[early_stopping])
+    history = model.fit(padded_train_sequences, y_train, epochs=100, validation_data=(padded_test_sentences, y_test), verbose=1, callbacks=[early_stopping])
 
     # evaluate the model
     print('Accuracy on test set: ', model.evaluate(padded_test_sentences, y_test)[1] * 100)
@@ -220,13 +220,13 @@ def test_2(_data):
     # Split the data into train and test sets
     labels = np.array(_data.is_sarcastic)
     sentences = np.array(_data.headline)
-    X_train, X_test, y_train, y_test = train_test_split(sentences, labels, test_size=0.3, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(sentences, labels, test_size=0.2, random_state=42)
 
     train_features_ids, train_features_masks = create_bert_input_features(tokenizer, X_train, max_seq_length=MAX_SEQ_LENGTH)
 
     es = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=1, restore_best_weights=True, verbose=1)
 
-    history = model.fit([train_features_ids, train_features_masks], y_train, validation_split=0.1, epochs=3, batch_size=25, callbacks=[es], shuffle=True, verbose=1)
+    history = model.fit([train_features_ids, train_features_masks], y_train, validation_split=0.2, epochs=5, batch_size=25, callbacks=[es], shuffle=True, verbose=1)
 
     test_features_ids, test_features_masks = create_bert_input_features(tokenizer, X_test, max_seq_length=MAX_SEQ_LENGTH)
 
