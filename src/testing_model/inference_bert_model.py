@@ -32,12 +32,15 @@ def predict_label(_string):
     bert_input = convert_string_to_bert_input(_string)
     prediction = model.predict([bert_input[0:1], bert_input[1:2]])
     label = 'Sarcastic' if prediction > 0.5 else 'Not sarcastic'
+    print("--------------------------------------------")
     print(f"Input: {_string}")
     print(f"Prediction: {label} ({prediction[0][0]:.4f})\n")
+    print("--------------------------------------------")
 
 
 # Test the model with some example inputs
 statements = [
+    "nick cannon responds to mariah carey's engagement in the best way",
     "Oh, great! Another meeting that could have been an email.",
     "Team collaboration is essential for success.",
     "I just love it when people talk loudly on their phones in public.",

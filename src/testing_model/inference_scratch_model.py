@@ -13,6 +13,7 @@ def predict_label(input_text):
     # Make predictions using the loaded model
     prediction = model.predict(padded_input_sequence)[0][0]
 
+    print("--------------------------------------------")
     print(prediction)
 
     # Convert the prediction to a sentiment label
@@ -20,6 +21,7 @@ def predict_label(input_text):
     print(input_text)
     # Print the prediction
     print(f'The model predicts that the input text has a {sentiment_label} sentiment.')
+    print("--------------------------------------------")
 
 
 # Test the model with some example inputs
