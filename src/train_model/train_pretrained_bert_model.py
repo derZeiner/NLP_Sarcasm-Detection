@@ -103,7 +103,7 @@ def train_pretrained_model(_data):
     # create the bert input features
     train_features_ids, train_features_masks = create_bert_input_features(tokenizer, x_train, max_seq_length=20)
     # define the early stopping callback
-    es = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=3)
+    es = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
     # train the model
     history = model.fit([train_features_ids, train_features_masks], y_train, validation_split=0.2, epochs=5, batch_size=25, callbacks=[es], shuffle=True, verbose=1)
 

@@ -9,7 +9,7 @@ from num2words import num2words
 import contractions
 import matplotlib.pyplot as plt
 import warnings
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, KFold
 import tensorflow as tf
 from keras.preprocessing.text import Tokenizer
 from keras.utils import pad_sequences
@@ -115,73 +115,103 @@ def plot_graphs(_history, _string):
     plt.show()
 
 
-def train_model_from_scratch(_data):
+def train_model_from_scratch(_data, num_folds, num_epochs, vocab_size, max_length, embedding_dim, padding_type, es):
     # ***********************************
-    # Function: Trains the model from scratch
+    # Function: Trains the model from scratch using k-fold cross validation
     # ***********************************
     # clean the data
-    _data = clean_data(data)
+    _data = clean_data(_data)
     # Print the data info
     data_info(_data)
     # Split the data into train and test sets
     x_train, x_test, y_train, y_test = train_test_split(np.array(_data.headline), np.array(_data.is_sarcastic), test_size=0.2)
 
-    # hyper-parameters
-    vocab_size = 10000
-    max_length = 200
-    embedding_dim = 64
-    padding_type = 'post'
-
-    # create a tokenizer
-    tokenizer = Tokenizer(num_words=vocab_size, oov_token='<OOV>')
-    # fit the tokenizer on the text
+    # Create the tokenizer
+    tokenizer = Tokenizer(num_words=vocab_size, oov_token="<OOV>")
+    # Fit the tokenizer on the training data
     tokenizer.fit_on_texts(x_train)
-    # convert the train text to sequences
+    # Create the word index
+    word_index = tokenizer.word_index
+    # Create the training sequences
     train_sequences = tokenizer.texts_to_sequences(x_train)
-    # pad the sequences
-    padded_train_sequences = pad_sequences(train_sequences, maxlen=max_length, padding=padding_type)
-    # convert the test text to sequences
+    # Pad the training sequences
+    train_padded = pad_sequences(train_sequences, maxlen=max_length, padding=padding_type, truncating=padding_type)
+    # Create the test sequences
     test_sequences = tokenizer.texts_to_sequences(x_test)
-    # pad the sequences
-    padded_test_sentences = pad_sequences(test_sequences, maxlen=max_length, padding=padding_type)
+    # Pad the test sequences
+    test_padded = pad_sequences(test_sequences, maxlen=max_length, padding=padding_type, truncating=padding_type)
 
-    # create the model
-    model = tf.keras.Sequential([
-        tf.keras.layers.Embedding(vocab_size, embedding_dim, input_length=max_length),
-        tf.keras.layers.Dropout(0.2),
-        tf.keras.layers.Conv1D(128, 5, activation='relu'),
-        tf.keras.layers.GlobalAveragePooling1D(),
-        tf.keras.layers.Dense(128, activation='relu'),
-        tf.keras.layers.Dropout(0.5),
-        tf.keras.layers.Dense(64, activation='relu'),
-        tf.keras.layers.Dropout(0.25),
-        tf.keras.layers.Dense(32, activation='relu'),
-        tf.keras.layers.Dropout(0.2),
-        tf.keras.layers.Dense(1, activation='sigmoid'),
-    ])
-    # model summary
-    model.summary()
-    # compile the model
-    model.compile(loss='binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001), metrics=['accuracy'])
-    # define the early stopping callback
-    es = EarlyStopping(monitor='val_loss', patience=3)
-    # train the model
-    history = model.fit(padded_train_sequences, y_train, epochs=10, validation_data=(padded_test_sentences, y_test), verbose=1, callbacks=[es])
+    # kfold cross validation
+    # Create the kfold object
+    kfold = KFold(n_splits=num_folds, shuffle=True)
+    # Create the list that will contain the scores
+    scores = []
+    # Create the list that will contain the histories
+    histories = []
+    # Loop through the folds
+    for train, test in kfold.split(train_padded, y_train):
+        print("-" * 50)
+        print("Training on fold " + str(len(scores) + 1) + "/" + str(num_folds) + "...")
+        # Create the model
+        model = tf.keras.Sequential([
+            tf.keras.layers.Embedding(vocab_size, embedding_dim, input_length=max_length),
+            tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(128, return_sequences=True)),
+            tf.keras.layers.GlobalMaxPool1D(),
+            tf.keras.layers.Dense(64, activation='relu'),
+            tf.keras.layers.Dropout(0.5),
+            tf.keras.layers.Dense(32, activation='sigmoid'),
+            tf.keras.layers.Dropout(0.5),
+            tf.keras.layers.Dense(1, activation='sigmoid')
+        ])
+        # Compile the model
+        model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
-    # evaluate the model
-    # print the accuracy on the test set
-    print('Accuracy on test set: ', model.evaluate(padded_test_sentences, y_test)[1] * 100)
-    # Plot the accuracy and loss
-    plot_graphs(history, "accuracy")
-    plot_graphs(history, "loss")
+        if es:
+            # define early stopping callback to stop training when the validation loss starts to increase
+            early_stopping = EarlyStopping(monitor='val_loss', patience=1, restore_best_weights=True)
+            # Train the model
+            history = model.fit(train_padded[train], y_train[train], epochs=num_epochs,
+                                validation_data=(train_padded[test], y_train[test]), verbose=1,
+                                callbacks=[early_stopping])
+        else:
+            # Train the model
+            history = model.fit(train_padded[train], y_train[train], epochs=num_epochs,
+                                validation_data=(train_padded[test], y_train[test]), verbose=1)
 
-    # Save the trained model
-    model.save('../../models/scratch_sarcasm_model.h5')
+        # Evaluate the model
+        scores.append(model.evaluate(train_padded[test], y_train[test], verbose=0))
+        # Append the history
+        histories.append(history)
+
+    # Print the scores
+    print(f"Scores: {scores}")
+    # Print the mean score
+    print(f"Mean score: {np.mean(scores)}")
+    # Print the standard deviation of the scores
+    print(f"Standard deviation of the scores: {np.std(scores)}")
+    # Plot the graphs
+    plot_graphs(histories[0], 'accuracy')
+    plot_graphs(histories[0], 'loss')
+    # Evaluate the model on the test data
+    print(f"Test loss: {model.evaluate(test_padded, y_test)[0]}")
+    print(f"Test accuracy: {model.evaluate(test_padded, y_test)[1]}")
+    # Save the model
+    model.save('../../models/scratch_sarcasm_kfold_model.h5')
+
 
 
 # path to the dataset
 filepath = '../dataset/Sarcasm_Headlines_Dataset_v2.json'
 # Read the dataset
 data = read_file(filepath)
+num_folds = 5
+num_epochs = 10
+vocab_size = 10000
+max_length = 500
+embedding_dim = 50
+padding_type = 'post'
+es = True
 # train the model from scratch with pre-trained word embeddings
-train_model_from_scratch(data)
+train_model_from_scratch(data, num_folds, num_epochs, vocab_size, max_length, embedding_dim, padding_type, es)
+
+
