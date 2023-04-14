@@ -58,8 +58,11 @@ tokenizer = transformers.DistilBertTokenizer.from_pretrained('distilbert-base-un
 # define custom object scope for TFDistilBertModel
 custom_objects = {'TFDistilBertModel': transformers.TFDistilBertModel}
 
+# path to the saved model
+model_path = '../../models/pretrained_bert_model.h5'
+
 # Load the trained model from disk
-model = tf.keras.models.load_model('pretrained_bert_model.h5', custom_objects=custom_objects)
+model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)
 
 for string in statements:
     # Predict the label of the input string

@@ -38,8 +38,11 @@ statements = [
     "Using turn signals enhances road safety and communication between drivers.",
 ]
 
+# Define the path to the trained model
+model_path = '../../models/scratch_sarcasm_model.h5'
+
 # Load the trained model from disk
-model = tf.keras.models.load_model('trained_model_from_scratch.h5')
+model = tf.keras.models.load_model(model_path)
 
 for string in statements:
     # Predict the label of the input string
