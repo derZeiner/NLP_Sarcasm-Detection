@@ -98,14 +98,14 @@ def train_pretrained_model(_data):
     model.summary()
 
     # Split the data into train and test sets
-    x_train, x_test, y_train, y_test = train_test_split(np.array(_data.headline), np.array(_data.is_sarcastic), test_size=0.2, random_state=42)
+    x_train, x_test, y_train, y_test = train_test_split(np.array(_data.headline), np.array(_data.is_sarcastic), test_size=0.2)
 
     # create the bert input features
     train_features_ids, train_features_masks = create_bert_input_features(tokenizer, x_train, max_seq_length=20)
     # define the early stopping callback
-    es = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
+    es = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=2, restore_best_weights=True)
     # train the model
-    history = model.fit([train_features_ids, train_features_masks], y_train, validation_split=0.2, epochs=5, batch_size=25, callbacks=[es], shuffle=True, verbose=1)
+    history = model.fit([train_features_ids, train_features_masks], y_train, validation_split=0.2, epochs=5, batch_size=300, callbacks=[es], shuffle=True, verbose=1)
 
     # evaluate the model
     # print the accuracy on the test set

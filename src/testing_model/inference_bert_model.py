@@ -28,25 +28,24 @@ def convert_string_to_bert_input(_string):
 
 
 # Define a function to predict the label of a single string input
-def predict_label(_string):
+def predict_label(_string, cl):
     bert_input = convert_string_to_bert_input(_string)
     prediction = model.predict([bert_input[0:1], bert_input[1:2]])
     label = 'Sarcastic' if prediction > 0.5 else 'Not sarcastic'
+    class_label = 'Sarcastic' if cl == 1 else 'Not sarcastic'
     print("--------------------------------------------")
     print(f"Input: {_string}")
-    print(f"Prediction: {label} ({prediction[0][0]:.4f})\n")
+    print(f"Prediction: {label} ({prediction[0][0]:.4f})")
+    print(f"Correct label: {class_label} ({cl})\n")
     print("--------------------------------------------")
 
 
 # Test the model with some example inputs
 statements = [
-    "nick cannon responds to mariah carey's engagement in the best way",
     "Oh, great! Another meeting that could have been an email.",
     "Team collaboration is essential for success.",
     "I just love it when people talk loudly on their phones in public.",
     "Respecting others' personal space promotes a positive atmosphere.",
-    "I can't wait to try the latest fad diet that's definitely going to work this time.",
-    "Maintaining a balanced diet and regular exercise contributes to a healthy lifestyle.",
     "I'm so glad my computer decided to update right in the middle of my presentation.",
     "Regular software updates help keep our devices secure and efficient.",
     "Sure, I'd love to hear your opinion on a topic you know nothing about.",
@@ -54,6 +53,21 @@ statements = [
     "Isn't it just wonderful when people don't use their turn signals?",
     "Using turn signals enhances road safety and communication between drivers.",
 ]
+
+headlines = [
+    "man delays exit from burning house to avoid small talk with neighbors",
+    "gunfire and explosions as sudan army and paramilitary fight",
+    "conservatives boycott computers after noticing keyboard can be used to type 'trans'",
+    "athlete emerges after 500 days living in cave",
+    "thousands of beef ribs fall from sky onto empty plates of texans who strapped on bib, prayed for dinner",
+    "jerusalem christians say attacks on the rise",
+    "federal reserve calls for more poverty",
+    "man 'eaten alive' by bed bugs in US jail",
+    "aging rock musician realizes it time to grow up and get a real job as jazz musician",
+    "japan pm evacuated after apparent smoke bomb blast"
+]
+
+classes = [1,0,1,0,1,0,1,0,1,0]
 
 # Load the tokenizer and model
 tokenizer = transformers.DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
@@ -67,6 +81,9 @@ model_path = '../../models/pretrained_bert_model.h5'
 # Load the trained model from disk
 model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)
 
-for string in statements:
-    # Predict the label of the input string
-    predict_label(string)
+# Predict the label of the example inputs
+for i in range(len(statements)):
+    predict_label(statements[i], classes[i])
+
+for i in range(len(headlines)):
+    predict_label(headlines[i], classes[i])
