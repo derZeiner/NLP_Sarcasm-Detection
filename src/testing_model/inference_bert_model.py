@@ -38,6 +38,7 @@ def predict_label(_string, cl):
     print(f"Prediction: {label} ({prediction[0][0]:.4f})")
     print(f"Correct label: {class_label} ({cl})\n")
     print("--------------------------------------------")
+    return prediction
 
 
 # Test the model with some example inputs
@@ -81,9 +82,48 @@ model_path = '../../models/pretrained_bert_model.h5'
 # Load the trained model from disk
 model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)
 
+prediction_statements = []
+prediction_headlines = []
+
 # Predict the label of the example inputs
 for i in range(len(statements)):
-    predict_label(statements[i], classes[i])
+    prediction_statements = predict_label(statements[i], classes[i])
 
 for i in range(len(headlines)):
-    predict_label(headlines[i], classes[i])
+    prediction_headlines = predict_label(headlines[i], classes[i])
+
+# compare the predictions with the correct labels and calculate the accuracy
+correct_statements = 0
+correct_headlines = 0
+correct = 0
+for i in range(len(prediction_statements)):
+    if classes[i] == 0:
+        if prediction_statements[i] < 0.5:
+            correct += 1
+            correct_statements += 1
+    else:
+        if prediction_statements[i] > 0.5:
+            correct += 1
+            correct_statements += 1
+
+
+for i in range(len(prediction_headlines)):
+    if classes[i] == 0:
+        if prediction_headlines[i] < 0.5:
+            correct += 1
+            correct_headlines += 1
+    else:
+        if prediction_headlines[i] > 0.5:
+            correct += 1
+            correct_headlines += 1
+
+# calculate accuracy seperate for headlines and statements
+accuracy_statements = correct_statements / len(prediction_statements)
+accuracy_headlines = correct_headlines / len(prediction_headlines)
+print(f"Accuracy statements: {accuracy_statements:.4f}")
+print(f"Accuracy headlines: {accuracy_headlines:.4f}")
+
+# calculate the overall accuracy
+accuracy = (accuracy_statements + accuracy_headlines) / 2
+
+print(f"Accuracy: {accuracy:.4f}")
