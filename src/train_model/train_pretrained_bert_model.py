@@ -120,9 +120,12 @@ def train_pretrained_model(_data):
     model.save('../../models/pretrained_bert_model.h5')
 
 
-# path to the dataset
-filepath = '../dataset/Sarcasm_Headlines_Dataset_v2.json'
-# Read the dataset
-data = read_file(filepath)
-# train the model with pre-trained BERT model
-train_pretrained_model(data)
+def run():
+    # path to the dataset
+    filepath = '../dataset/Sarcasm_Headlines_Dataset_v2.json'
+    # Read the dataset
+    data = read_file(filepath)
+    # train the model with pre-trained BERT model
+    train_pretrained_model(data)
+
+run()

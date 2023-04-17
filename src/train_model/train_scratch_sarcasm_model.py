@@ -179,9 +179,12 @@ def train_model_from_scratch(_data):
     model.save('../../models/scratch_sarcasm_model.h5')
 
 
-# path to the dataset
-filepath = '../dataset/Sarcasm_Headlines_Dataset_v2.json'
-# Read the dataset
-data = read_file(filepath)
-# train the model from scratch with pre-trained word embeddings
-train_model_from_scratch(data)
+def run():
+    # path to the dataset
+    filepath = '../dataset/Sarcasm_Headlines_Dataset_v2.json'
+    # Read the dataset
+    data = read_file(filepath)
+    # train the model from scratch with pre-trained word embeddings
+    train_model_from_scratch(data)
+
+run()

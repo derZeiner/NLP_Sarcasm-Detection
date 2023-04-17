@@ -198,20 +198,21 @@ def train_model_from_scratch(_data, num_folds, num_epochs, vocab_size, max_lengt
     # Save the model
     model.save('../../models/scratch_sarcasm_kfold_model.h5')
 
+def run():
+    # path to the dataset
+    filepath = '../dataset/Sarcasm_Headlines_Dataset_v2.json'
+    # Read the dataset
+    data = read_file(filepath)
+    num_folds = 5
+    num_epochs = 10
+    vocab_size = 10000
+    max_length = 500
+    embedding_dim = 50
+    padding_type = 'post'
+    es = True
+    # train the model from scratch with pre-trained word embeddings
+    train_model_from_scratch(data, num_folds, num_epochs, vocab_size, max_length, embedding_dim, padding_type, es)
 
-
-# path to the dataset
-filepath = '../dataset/Sarcasm_Headlines_Dataset_v2.json'
-# Read the dataset
-data = read_file(filepath)
-num_folds = 5
-num_epochs = 10
-vocab_size = 10000
-max_length = 500
-embedding_dim = 50
-padding_type = 'post'
-es = True
-# train the model from scratch with pre-trained word embeddings
-train_model_from_scratch(data, num_folds, num_epochs, vocab_size, max_length, embedding_dim, padding_type, es)
+run()
 
 
