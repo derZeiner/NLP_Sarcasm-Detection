@@ -102,7 +102,7 @@ def data_info(_data):
     print(f"Length of the longest sentence: {_data['sentence_length'].max()}")
 
 
-def plot_graphs(_history, _string):
+def plot_graphs(_history, _string, _name, _type):
     # ***********************************
     # Function: Plots the graphs
     # ***********************************
@@ -112,7 +112,9 @@ def plot_graphs(_history, _string):
     plt.xlabel("Epochs")
     plt.ylabel(_string)
     plt.legend([_string, 'val_' + _string])
+    plt.title("Sarcasm Detection - " + _name + " - " + _type)
     plt.show()
+    plt.savefig(_name + "_" + _type + ".png")
 
 
 def train_model_from_scratch(_data):
@@ -120,7 +122,7 @@ def train_model_from_scratch(_data):
     # Function: Trains the model from scratch
     # ***********************************
     # clean the data
-    _data = clean_data(data)
+    _data = clean_data(_data)
     # Print the data info
     data_info(_data)
     # Split the data into train and test sets
@@ -172,8 +174,8 @@ def train_model_from_scratch(_data):
     # print the accuracy on the test set
     print('Accuracy on test set: ', model.evaluate(padded_test_sentences, y_test)[1] * 100)
     # Plot the accuracy and loss
-    plot_graphs(history, "accuracy")
-    plot_graphs(history, "loss")
+    plot_graphs(history, "accuracy", "Scratch-Model", "Accuracy")
+    plot_graphs(history, "loss", "Scratch-Model", "Loss")
 
     # Save the trained model
     model.save('../../models/scratch_sarcasm_model.h5')

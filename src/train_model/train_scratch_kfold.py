@@ -102,7 +102,7 @@ def data_info(_data):
     print(f"Length of the longest sentence: {_data['sentence_length'].max()}")
 
 
-def plot_graphs(_history, _string):
+def plot_graphs(_history, _string, _name, _type):
     # ***********************************
     # Function: Plots the graphs
     # ***********************************
@@ -112,7 +112,9 @@ def plot_graphs(_history, _string):
     plt.xlabel("Epochs")
     plt.ylabel(_string)
     plt.legend([_string, 'val_' + _string])
+    plt.title("Sarcasm Detection - " + _name + " - " + _type)
     plt.show()
+    plt.savefig(_name + "_" + _type + ".png")
 
 
 def train_model_from_scratch(_data, num_folds, num_epochs, vocab_size, max_length, embedding_dim, padding_type, es):
@@ -190,8 +192,8 @@ def train_model_from_scratch(_data, num_folds, num_epochs, vocab_size, max_lengt
     # Print the standard deviation of the scores
     print(f"Standard deviation of the scores: {np.std(scores)}")
     # Plot the graphs
-    plot_graphs(histories[0], 'accuracy')
-    plot_graphs(histories[0], 'loss')
+    plot_graphs(histories[0], 'accuracy', 'Sarcasm Detection', 'Accuracy')
+    plot_graphs(histories[0], 'loss', 'Sarcasm Detection', 'Loss')
     # Evaluate the model on the test data
     print(f"Test loss: {model.evaluate(test_padded, y_test)[0]}")
     print(f"Test accuracy: {model.evaluate(test_padded, y_test)[1]}")
