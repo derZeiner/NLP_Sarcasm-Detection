@@ -45,7 +45,7 @@ def clean_data(_data):
     # ***********************************
     # Function: Cleans the data
     # ***********************************
-    # Drop the is_sarcastic column
+    # Drop the article_link column
     _data.drop(['article_link'], axis=1, inplace=True)
     # Drop the rows with missing values
     _data.dropna(inplace=True)
