@@ -309,3 +309,5 @@ pyrightconfig.json
 
 # ignore models
 !models/
+models/
+models/*
