@@ -107,7 +107,7 @@ def train_pretrained_model(_data):
     # define the early stopping callback
     es = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
     # train the model
-    history = model.fit([train_features_ids, train_features_masks], y_train, validation_split=0.2, epochs=10, batch_size=50, callbacks=[es], shuffle=True, verbose=1)
+    history = model.fit([train_features_ids, train_features_masks], y_train, validation_split=0.2, epochs=10, batch_size=200, callbacks=[es], shuffle=True, verbose=1)
 
     # evaluate the model
     # print the accuracy on the test set
