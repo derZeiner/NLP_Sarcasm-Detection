@@ -113,8 +113,8 @@ def plot_graphs(_history, _string, _name, _type):
     plt.ylabel(_string)
     plt.legend([_string, 'val_' + _string])
     plt.title("Sarcasm Detection - " + _name + " - " + _type)
-    plt.show()
     plt.savefig(_name + "_" + _type + ".png")
+    plt.show()
 
 
 def train_model_from_scratch(_data, num_folds, num_epochs, vocab_size, max_length, embedding_dim, padding_type, es):
@@ -170,7 +170,7 @@ def train_model_from_scratch(_data, num_folds, num_epochs, vocab_size, max_lengt
 
         if es:
             # define early stopping callback to stop training when the validation loss starts to increase
-            early_stopping = EarlyStopping(monitor='val_loss', patience=1, restore_best_weights=True)
+            early_stopping = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
             # Train the model
             history = model.fit(train_padded[train], y_train[train], epochs=num_epochs,
                                 validation_data=(train_padded[test], y_train[test]), verbose=1,
@@ -192,8 +192,8 @@ def train_model_from_scratch(_data, num_folds, num_epochs, vocab_size, max_lengt
     # Print the standard deviation of the scores
     print(f"Standard deviation of the scores: {np.std(scores)}")
     # Plot the graphs
-    plot_graphs(histories[0], 'accuracy', 'Sarcasm Detection', 'Accuracy')
-    plot_graphs(histories[0], 'loss', 'Sarcasm Detection', 'Loss')
+    plot_graphs(histories[0], 'accuracy', 'KFold-Scratch-Model', 'Accuracy')
+    plot_graphs(histories[0], 'loss', 'KFold-Scratch-Model', 'Loss')
     # Evaluate the model on the test data
     print(f"Test loss: {model.evaluate(test_padded, y_test)[0]}")
     print(f"Test accuracy: {model.evaluate(test_padded, y_test)[1]}")

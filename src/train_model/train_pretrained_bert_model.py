@@ -26,7 +26,7 @@ def read_file(path):
     return pd.DataFrame(raw_data)
 
 
-def plot_graphs(_history, _string):
+def plot_graphs(_history, _string, _name, _type):
     # ***********************************
     # Function: Plots the graphs
     # ***********************************
@@ -36,6 +36,8 @@ def plot_graphs(_history, _string):
     plt.xlabel("Epochs")
     plt.ylabel(_string)
     plt.legend([_string, 'val_' + _string])
+    plt.title("Sarcasm Detection - " + _name + " - " + _type)
+    plt.savefig(_name + "_" + _type + ".png")
     plt.show()
 
 
@@ -103,9 +105,9 @@ def train_pretrained_model(_data):
     # create the bert input features
     train_features_ids, train_features_masks = create_bert_input_features(tokenizer, x_train, max_seq_length=20)
     # define the early stopping callback
-    es = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=2, restore_best_weights=True)
+    es = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
     # train the model
-    history = model.fit([train_features_ids, train_features_masks], y_train, validation_split=0.2, epochs=5, batch_size=300, callbacks=[es], shuffle=True, verbose=1)
+    history = model.fit([train_features_ids, train_features_masks], y_train, validation_split=0.2, epochs=10, batch_size=50, callbacks=[es], shuffle=True, verbose=1)
 
     # evaluate the model
     # print the accuracy on the test set
@@ -113,8 +115,8 @@ def train_pretrained_model(_data):
     predictions = [1 if pr > 0.5 else 0 for pr in model.predict([test_features_ids, test_features_masks], verbose=0).ravel()]
     print(classification_report(y_test, predictions))
     # Plot the accuracy and loss
-    plot_graphs(history, "accuracy")
-    plot_graphs(history, "loss")
+    plot_graphs(history, "accuracy", "BasedOnBert-Model", "Accuracy")
+    plot_graphs(history, "loss", "BasedOnBert-Model", "Loss")
 
     # Save the trained model to disk
     model.save('../../models/pretrained_bert_model.h5')

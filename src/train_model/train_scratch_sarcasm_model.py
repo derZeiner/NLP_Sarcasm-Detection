@@ -113,8 +113,8 @@ def plot_graphs(_history, _string, _name, _type):
     plt.ylabel(_string)
     plt.legend([_string, 'val_' + _string])
     plt.title("Sarcasm Detection - " + _name + " - " + _type)
-    plt.show()
     plt.savefig(_name + "_" + _type + ".png")
+    plt.show()
 
 
 def train_model_from_scratch(_data):
@@ -166,7 +166,7 @@ def train_model_from_scratch(_data):
     # compile the model
     model.compile(loss='binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001), metrics=['accuracy'])
     # define the early stopping callback
-    es = EarlyStopping(monitor='val_loss', patience=3)
+    es = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
     # train the model
     history = model.fit(padded_train_sequences, y_train, epochs=10, validation_data=(padded_test_sentences, y_test), verbose=1, callbacks=[es])
 
