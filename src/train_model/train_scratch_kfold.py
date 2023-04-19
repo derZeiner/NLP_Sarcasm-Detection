@@ -126,7 +126,8 @@ def train_model_from_scratch(_data, num_folds, num_epochs, vocab_size, max_lengt
     # Print the data info
     data_info(_data)
     # Split the data into train and test sets
-    x_train, x_test, y_train, y_test = train_test_split(np.array(_data.headline), np.array(_data.is_sarcastic), test_size=0.2)
+    x_train, x_test, y_train, y_test = train_test_split(np.array(_data.headline), np.array(_data.is_sarcastic),
+                                                        test_size=0.2)
 
     # Create the tokenizer
     tokenizer = Tokenizer(num_words=vocab_size, oov_token="<OOV>")
@@ -200,6 +201,7 @@ def train_model_from_scratch(_data, num_folds, num_epochs, vocab_size, max_lengt
     # Save the model
     model.save('../../models/scratch_sarcasm_kfold_model.h5')
 
+
 def run():
     # path to the dataset
     filepath = '../dataset/Sarcasm_Headlines_Dataset_v2.json'
@@ -215,6 +217,9 @@ def run():
     # train the model from scratch with pre-trained word embeddings
     train_model_from_scratch(data, num_folds, num_epochs, vocab_size, max_length, embedding_dim, padding_type, es)
 
+
 run()
 
-
+# how to predict
+# model = tf.keras.models.load_model('../../models/scratch_sarcasm_kfold_model.h5')
+# model.predict_classes(test_padded)

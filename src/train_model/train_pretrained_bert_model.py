@@ -52,8 +52,8 @@ def create_bert_input_features(tokenizer, docs, max_seq_length):
         # `encode` will:
         #   (1) Tokenize the sentence.
         tokens = tokenizer.tokenize(doc)
-        if len(tokens) > max_seq_length-2:
-            tokens = tokens[0: (max_seq_length-2)]
+        if len(tokens) > max_seq_length - 2:
+            tokens = tokens[0: (max_seq_length - 2)]
         #  (2) Prepend the `[CLS]` token to the start.
         tokens = ['[CLS]'] + tokens + ['[SEP]']
         ids = tokenizer.convert_tokens_to_ids(tokens)
@@ -95,24 +95,28 @@ def train_pretrained_model(_data):
     # create the model
     model = tf.keras.Model(inputs=inputs, outputs=output)
     # compile the model
-    model.compile(optimizer=tf.optimizers.Adam(learning_rate=2e-5, epsilon=1e-08), loss='binary_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=tf.optimizers.Adam(learning_rate=2e-5, epsilon=1e-08), loss='binary_crossentropy',
+                  metrics=['accuracy'])
     # model summary
     model.summary()
 
     # Split the data into train and test sets
-    x_train, x_test, y_train, y_test = train_test_split(np.array(_data.headline), np.array(_data.is_sarcastic), test_size=0.2)
+    x_train, x_test, y_train, y_test = train_test_split(np.array(_data.headline), np.array(_data.is_sarcastic),
+                                                        test_size=0.2)
 
     # create the bert input features
     train_features_ids, train_features_masks = create_bert_input_features(tokenizer, x_train, max_seq_length=20)
     # define the early stopping callback
     es = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
     # train the model
-    history = model.fit([train_features_ids, train_features_masks], y_train, validation_split=0.2, epochs=10, batch_size=200, callbacks=[es], shuffle=True, verbose=1)
+    history = model.fit([train_features_ids, train_features_masks], y_train, validation_split=0.2, epochs=10,
+                        batch_size=200, callbacks=[es], shuffle=True, verbose=1)
 
     # evaluate the model
     # print the accuracy on the test set
     test_features_ids, test_features_masks = create_bert_input_features(tokenizer, x_test, max_seq_length=20)
-    predictions = [1 if pr > 0.5 else 0 for pr in model.predict([test_features_ids, test_features_masks], verbose=0).ravel()]
+    predictions = [1 if pr > 0.5 else 0 for pr in
+                   model.predict([test_features_ids, test_features_masks], verbose=0).ravel()]
     print(classification_report(y_test, predictions))
     # Plot the accuracy and loss
     plot_graphs(history, "accuracy", "BasedOnBert-Model", "Accuracy")
@@ -129,5 +133,6 @@ def run():
     data = read_file(filepath)
     # train the model with pre-trained BERT model
     train_pretrained_model(data)
+
 
 run()

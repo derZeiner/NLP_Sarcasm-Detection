@@ -1,41 +1,44 @@
-import transformers
-import numpy as np
 import tensorflow as tf
+from keras.preprocessing.text import Tokenizer
+from keras.utils import pad_sequences
 
 
-def convert_string_to_bert_input(_string):
-    # ************************************************************
-    # This function is adapted from the following source:
-    # Define a function to convert a single string input to BERT input features
-    # ************************************************************
-    # Tokenize the input string
-    tokens = tokenizer.tokenize(_string)
-    # Define the maximum sequence length
-    MAX_SEQ_LENGTH = 20
-    # Truncate the sequence to the maximum length
-    if len(tokens) > MAX_SEQ_LENGTH - 2:
-        tokens = tokens[0: (MAX_SEQ_LENGTH - 2)]
-    tokens = ['[CLS]'] + tokens + ['[SEP]']
-    ids = tokenizer.convert_tokens_to_ids(tokens)
-    masks = [1] * len(ids)
-    # Zero-pad up to the sequence length.
-    while len(ids) < MAX_SEQ_LENGTH:
-        ids.append(0)
-        masks.append(0)
-    # Convert to numpy arrays
-    encoded = np.array([ids, masks])
-    return encoded
+def predict_label(input_text):
+    # Tokenize the input text using the previously defined tokenizer
+    tokenizer = Tokenizer(num_words=10000, oov_token='<OOV>')
+    tokenizer.fit_on_texts([input_text])
+    input_sequence = tokenizer.texts_to_sequences([input_text])
+    padded_input_sequence = pad_sequences(input_sequence, maxlen=200, padding='post')
+
+    # Make predictions using the loaded model
+    prediction = model.predict(padded_input_sequence)[0][0]
+
+    print("--------------------------------------------")
+    print(prediction)
+
+    # Convert the prediction to a sentiment label
+    sentiment_label = 'positive' if prediction >= 0.5 else 'negative'
+    print(input_text)
+    # Print the prediction
+    print(f'The model predicts that the input text has a {sentiment_label} sentiment.')
+    print("--------------------------------------------")
 
 
-# Define a function to predict the label of a single string input
 def predict_label(_string, cl):
-    bert_input = convert_string_to_bert_input(_string)
-    prediction = model.predict([bert_input[0:1], bert_input[1:2]])
+    # Tokenize the input text using the previously defined tokenizer
+    tokenizer = Tokenizer(num_words=10000, oov_token='<OOV>')
+    tokenizer.fit_on_texts([_string])
+    input_sequence = tokenizer.texts_to_sequences([_string])
+    padded_input_sequence = pad_sequences(input_sequence, maxlen=500, padding='post')
+
+    # Make predictions using the loaded model
+    prediction = model.predict(padded_input_sequence)[0][0]
+
     label = 'Sarcastic' if prediction > 0.5 else 'Not sarcastic'
     class_label = 'Sarcastic' if cl == 1 else 'Not sarcastic'
     print("--------------------------------------------")
     print(f"Input: {_string}")
-    print(f"Prediction: {label} ({prediction[0][0]:.4f})")
+    print(f"Prediction: {label} ({prediction:.4f})")
     print(f"Correct label: {class_label} ({cl})\n")
     print("--------------------------------------------")
     return prediction
@@ -118,16 +121,10 @@ headlines = [
 
 classes = [1, 0, 1, 0, 1, 0, 1, 0, 1, 0]
 
-# Load the tokenizer and model
-tokenizer = transformers.DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
-
-# define custom object scope for TFDistilBertModel
-custom_objects = {'TFDistilBertModel': transformers.TFDistilBertModel}
-
-# path to the saved model
-model_path = '../../models/pretrained_bert_model.h5'
+# Define the path to the trained model
+model_path = '../../models/scratch_sarcasm_kfold_model.h5'
 
 # Load the trained model from disk
-model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)
+model = tf.keras.models.load_model(model_path)
 
 run_inference()
